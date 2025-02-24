@@ -135,7 +135,7 @@ M.setup = function(opts)
 	local keymap = opts.keymap or "<leader>s"
 
 	-- Visual mode mapping
-	vim.keymap.set("v", keymap, ":<C-u>lua require('helperAI').search()<CR>", { noremap = true, silent = true })
+	vim.keymap.set("v", keymap, search_helperai, { noremap = true, silent = true })
 
 	-- Autocommand for highlighting
 	api.nvim_create_autocmd("BufEnter", {
