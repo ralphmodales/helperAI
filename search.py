@@ -19,31 +19,35 @@ def get_description(content):
 
 
 def search(client, query):
-    results = client.search_and_contents(query, text={"max_characters": 2000})
-    if not results.results:
-        return ["No results found."]
+    try:
+        results = client.search_and_contents(query, text={"max_characters": 2000})
+        if not results.results:
+            return ["No results found."]
 
-    ranked = sorted(
-        results.results,
-        key=lambda r: len(r.text or r.content or "")
-        * sum(
-            word in (r.text or r.content or "").lower()
-            for word in query.lower().split()
-        ),
-        reverse=True,
-    )
-    top_5 = ranked[:5]
+        ranked = sorted(
+            results.results,
+            key=lambda r: len(r.text or r.content or "")
+            * sum(
+                word in (r.text or r.content or "").lower()
+                for word in query.lower().split()
+            ),
+            reverse=True,
+        )
+        top_5 = ranked[:5]
 
-    output = ["Top 5 Results:"]
-    for i, result in enumerate(top_5, 1):
-        content = result.text or result.content or ""
-        desc = get_description(content)
-        output.append(f"{i}. {result.title}")
-        output.append(f"   Description: {desc}")
-        output.append(f"   URL: {result.url}")
-        output.append("")
+        output = ["Top 5 Results:"]
+        for i, result in enumerate(top_5, 1):
+            content = result.text or result.content or ""
+            desc = get_description(content)
+            output.append(f"{i}. {result.title}")
+            output.append(f"   Description: {desc}")
+            output.append(f"   URL: {result.url}")
+            output.append("")
 
-    return output
+        return output
+
+    except Exception as e:
+        return [f"Error occurred: {str(e)}"]
 
 
 def main():
@@ -53,8 +57,9 @@ def main():
 
     client = load_exa_client()
     results = search(client, args.query)
+
     for line in results:
-        print(line)
+        print(line, flush=True)
 
 
 if __name__ == "__main__":

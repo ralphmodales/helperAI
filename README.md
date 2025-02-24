@@ -32,7 +32,7 @@ URL: https://example.com/async-guide
 
 ### Prerequisites
 
-- Neovim 0.7 or later
+- Neovim 0.10+ (`nvim --version` to check)
 - Python 3 installed (`python3 --version` to check)
 - Required Python packages:
   ```bash
@@ -42,31 +42,73 @@ URL: https://example.com/async-guide
 
 ### Steps
 
-1. **Clone the Repo**:
+1. **Clone the Repo**: Clone helperAI into a directory LazyVim can find. Since LazyVim uses Git-based plugin management, we'll place it temporarily and let Lazy handle it.
    ```bash
-   git clone https://github.com/ralphmodales/helperAI ~/.config/nvim/pack/plugins/start/helperAI
+   git clone https://github.com/ralphmodales/helperAI ~/helperAI-temp
    ```
+   - This creates a temp folder; we'll configure LazyVim to pull it directly from GitHub later
 
-2. **Load the Plugin**:
-   Add this line to your `init.lua`:
+2. Add to LazyVim: LazyVim manages plugins via Lua specs in ~/.config/nvim/lua/plugins/. Create or edit a file for helperAI:
+   ```bash
+   mkdir -p ~/.config/nvim/lua/plugins
+   nvim ~/.config/nvim/lua/plugins/helperAI.lua
+   ```
+   Add this content:
    ```lua
-   require("helperAI")
+    return {
+      "ralphmodales/helperAI",
+      config = function()
+        require("helperAI").setup()
+      end,
+    }
    ```
+   - This tells LazyVim to fetch the plugin from GitHub and run its setup function.
 
-3. **Set Up the Python Script**:
-   Create the directory and copy both Python files:
+3. **Install the Plugin**:
+  - Open Neovim: nvim.
+  - Run :Lazy to open the LazyVim plugin manager.
+  - Find helperAI in the list (it'll show as ralphmodales/helperAI).
+  - Press I (or your keybbind for install) to download it.
+  - LazyVim clones it to ~/.local/share/nvim/lazy/helperAI/ automatically.
+
+4. **Set Up the Python Script**: The plugin needs search.py in a specific location. Copy it from the cloned repo:
    ```bash
-   mkdir -p ~/.config/nvim/../helperAI
-   cp helperAI/search.py ~/.config/nvim/../helperAI/
+   mkdir -p ~/.config/nvim/helperAI
+   cp ~/helperAI-temp/search.py ~/.config/nvim/helperAI/
    ```
-
-4. **Add Your API Key**:
+   - Alternatively, if you've installed via Lazy, the path is: 
    ```bash
-   echo "EXA_API_KEY=your-api-key-here" > ~/.config/nvim/../helperAI/.env
+    cp ~/.local/share/nvim/lazy/helperAI/search.py ~/.config/nvim/helperAI/
+   ```
+   - Verify it's there ls ~/.config/nvim/helperAI/search.py
+
+5. **Configure the API Key**: The repo includes .env.example as a template. Copy it and add your key:
+   ```bash
+   cp ~/helperAI-temp/.env.example ~/.config/nvim/helperAI/.env
+   ```
+   - Or, if using the Lazy-installed path:
+   ```bash
+    cp ~/.local/share/nvim/lazy/helperAI/.env.example ~/.config/nvim/helperAI/.env
+   ```
+  - Edit .env:
+    ```bash
+    nvim ~/.config/nvim/helperAI/.env
+    ```
+      Replace your-api-key-here with you actual Exa API Key:
+      ```text
+      EXA_API_KEY=your-actual-exa-api-key
+      ```
+  - Save and exit (:wq).
+
+6. **(Optional) Clean Up**: If you used the temp clone, remove it:
+   ```bash
+   rm -rf ~/helperAI-temp
    ```
 
-5. **Restart Neovim**: Open Neovim, and you're good to go!
-
+7. **Verify Setup:**
+  - Restart Neovim
+  - Check if the plugin loaded: :Lazy (look for helperAI marked as loaded).
+  - Test it: Open a file, select text in visual mode (v), press <leader>s (default \s), and see if a floating window appears with "HelperAI is searching...".
 ## Usage
 
 ### Highlight Unknowns
