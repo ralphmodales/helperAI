@@ -185,7 +185,7 @@ Found a bug? Any suggestions?
 
 MIT License - Meh, do what you want.
 
-Copyright (c) 2025 [ralphmodales]
+Copyright (c) 2025 ralphmodales
 
 ## Credits
 
