@@ -7,7 +7,7 @@ api.nvim_set_hl(0, "UnknownTerm", { bg = "#ff5555", fg = "#ffffff" })
 -- Create a namespace for our highlights
 local ns_id = api.nvim_create_namespace("helperAI")
 
--- Function to show typing animation
+-- Function to show results with line-by-line animation
 local function animate_text(bufnr, lines)
 	if not api.nvim_buf_is_valid(bufnr) then
 		return
@@ -16,8 +16,6 @@ local function animate_text(bufnr, lines)
 	local current_lines = {}
 	local timer = vim.loop.new_timer()
 	local line_idx = 1
-	local char_idx = 1
-	local current_line = ""
 
 	-- Ensure buffer is modifiable
 	api.nvim_buf_set_option(bufnr, "modifiable", true)
@@ -25,11 +23,11 @@ local function animate_text(bufnr, lines)
 	-- Show "Searching..." message initially
 	api.nvim_buf_set_lines(bufnr, 0, -1, false, { "HelperAI is searching..." })
 
-	-- Start animation after 1 second
+	-- Start animation with a shorter delay and faster updates
 	vim.defer_fn(function()
 		timer:start(
-			50,
-			50,
+			100, -- Initial delay between lines (milliseconds)
+			100, -- Interval between lines (milliseconds)
 			vim.schedule_wrap(function()
 				-- Check if buffer still exists
 				if not api.nvim_buf_is_valid(bufnr) then
@@ -47,32 +45,25 @@ local function animate_text(bufnr, lines)
 					return
 				end
 
-				if char_idx > #lines[line_idx] then
-					current_lines[line_idx] = lines[line_idx]
-					line_idx = line_idx + 1
-					char_idx = 1
-					current_line = ""
-				else
-					current_line = current_line .. lines[line_idx]:sub(char_idx, char_idx)
-					current_lines[line_idx] = current_line
-					char_idx = char_idx + 1
-				end
+				-- Add the complete line
+				current_lines[line_idx] = lines[line_idx]
+				line_idx = line_idx + 1
 
 				pcall(api.nvim_buf_set_lines, bufnr, 0, -1, false, current_lines)
 
-				-- Apply highlighting
-				if current_lines[line_idx] then
-					if current_lines[line_idx]:match("^%d+%.") then
-						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "Identifier", line_idx - 1, 0, -1)
-					elseif current_lines[line_idx]:match("^%s+Description:") then
-						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "String", line_idx - 1, 0, -1)
-					elseif current_lines[line_idx]:match("^%s+URL:") then
-						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "Underlined", line_idx - 1, 0, -1)
+				-- Apply highlighting for the last added line
+				if current_lines[line_idx - 1] then
+					if current_lines[line_idx - 1]:match("^%d+%.") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "Identifier", line_idx - 2, 0, -1)
+					elseif current_lines[line_idx - 1]:match("^%s+Description:") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "String", line_idx - 2, 0, -1)
+					elseif current_lines[line_idx - 1]:match("^%s+URL:") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "Underlined", line_idx - 2, 0, -1)
 					end
 				end
 			end)
 		)
-	end, 1000)
+	end, 500) -- Reduced initial delay to 500ms
 end
 
 -- Highlight unknown terms
