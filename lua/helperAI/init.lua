@@ -9,11 +9,18 @@ local ns_id = api.nvim_create_namespace("helperAI")
 
 -- Function to show typing animation
 local function animate_text(bufnr, lines)
+	if not api.nvim_buf_is_valid(bufnr) then
+		return
+	end
+
 	local current_lines = {}
 	local timer = vim.loop.new_timer()
 	local line_idx = 1
 	local char_idx = 1
 	local current_line = ""
+
+	-- Ensure buffer is modifiable
+	api.nvim_buf_set_option(bufnr, "modifiable", true)
 
 	-- Show "Searching..." message initially
 	api.nvim_buf_set_lines(bufnr, 0, -1, false, { "HelperAI is searching..." })
@@ -24,8 +31,19 @@ local function animate_text(bufnr, lines)
 			50,
 			50,
 			vim.schedule_wrap(function()
+				-- Check if buffer still exists
+				if not api.nvim_buf_is_valid(bufnr) then
+					timer:stop()
+					return
+				end
+
+				-- Ensure buffer is modifiable before each update
+				api.nvim_buf_set_option(bufnr, "modifiable", true)
+
 				if line_idx > #lines then
 					timer:stop()
+					-- Set buffer as non-modifiable after animation
+					api.nvim_buf_set_option(bufnr, "modifiable", false)
 					return
 				end
 
@@ -40,15 +58,17 @@ local function animate_text(bufnr, lines)
 					char_idx = char_idx + 1
 				end
 
-				api.nvim_buf_set_lines(bufnr, 0, -1, false, current_lines)
+				pcall(api.nvim_buf_set_lines, bufnr, 0, -1, false, current_lines)
 
 				-- Apply highlighting
-				if current_lines[line_idx] and current_lines[line_idx]:match("^%d+%.") then
-					api.nvim_buf_add_highlight(bufnr, ns_id, "Identifier", line_idx - 1, 0, -1)
-				elseif current_lines[line_idx] and current_lines[line_idx]:match("^%s+Description:") then
-					api.nvim_buf_add_highlight(bufnr, ns_id, "String", line_idx - 1, 0, -1)
-				elseif current_lines[line_idx] and current_lines[line_idx]:match("^%s+URL:") then
-					api.nvim_buf_add_highlight(bufnr, ns_id, "Underlined", line_idx - 1, 0, -1)
+				if current_lines[line_idx] then
+					if current_lines[line_idx]:match("^%d+%.") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "Identifier", line_idx - 1, 0, -1)
+					elseif current_lines[line_idx]:match("^%s+Description:") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "String", line_idx - 1, 0, -1)
+					elseif current_lines[line_idx]:match("^%s+URL:") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "Underlined", line_idx - 1, 0, -1)
+					end
 				end
 			end)
 		)
@@ -61,7 +81,7 @@ local function highlight_unknown_terms()
 	for i, line in ipairs(lines) do
 		for word in line:gmatch("%w+") do
 			if not fn.synIDattr(fn.synID(i, fn.col("."), 1), "name") then
-				fn.matchadd("UnknownTerm", "\\<" .. word .. "\\>", 10, -1, { window = 0 })
+				pcall(fn.matchadd, "UnknownTerm", "\\<" .. word .. "\\>", 10, -1, { window = 0 })
 			end
 		end
 	end
@@ -87,8 +107,17 @@ local function search_helperai()
 
 	-- Create result buffer
 	local buf = api.nvim_create_buf(false, true)
-	api.nvim_set_option_value("modifiable", true, { buf = buf })
-	api.nvim_set_option_value("filetype", "helperai", { buf = buf })
+	-- Set buffer options
+	local buffer_options = {
+		modifiable = true,
+		filetype = "helperai",
+		buftype = "nofile",
+		swapfile = false,
+	}
+
+	for option, value in pairs(buffer_options) do
+		api.nvim_buf_set_option(buf, option, value)
+	end
 
 	-- Open floating window
 	local width = api.nvim_get_option_value("columns", {})
@@ -103,8 +132,8 @@ local function search_helperai()
 	}
 
 	local win = api.nvim_open_win(buf, true, win_config)
-	api.nvim_set_option_value("wrap", true, { win = win })
-	api.nvim_set_option_value("cursorline", true, { win = win })
+	api.nvim_win_set_option(win, "wrap", true)
+	api.nvim_win_set_option(win, "cursorline", true)
 
 	-- Execute search in background
 	local script_path = fn.expand(fn.stdpath("config") .. "/helperAI/search.py")
@@ -118,11 +147,19 @@ local function search_helperai()
 		stdout_buffered = true,
 		on_stdout = function(_, data)
 			if data then
-				animate_text(buf, data)
+				vim.schedule(function()
+					if api.nvim_buf_is_valid(buf) then
+						animate_text(buf, data)
+					end
+				end)
 			end
 		end,
 		on_exit = function()
-			api.nvim_set_option_value("modifiable", false, { buf = buf })
+			vim.schedule(function()
+				if api.nvim_buf_is_valid(buf) then
+					api.nvim_buf_set_option(buf, "modifiable", false)
+				end
+			end)
 		end,
 	})
 end
