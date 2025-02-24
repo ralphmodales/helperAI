@@ -95,14 +95,22 @@ end
 
 -- Search with helperAI
 local function search_helperai()
+	-- Store the current mode before any operations
 	local mode = fn.mode()
-	if mode ~= "v" and mode ~= "V" then
+
+	-- Exit visual mode to ensure we get the correct selection
+	if mode == "v" or mode == "V" then
+		api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
+	else
 		vim.notify("Please select text in visual mode first!", vim.log.levels.WARN)
 		return
 	end
 
+	-- Get the selection marks after exiting visual mode
 	local start_pos = api.nvim_buf_get_mark(0, "<")
 	local end_pos = api.nvim_buf_get_mark(0, ">")
+
+	-- Get the selected text
 	local lines = api.nvim_buf_get_text(0, start_pos[1] - 1, start_pos[2], end_pos[1] - 1, end_pos[2] + 1, {})
 	local query = table.concat(lines, " "):gsub("%s+", " ")
 
