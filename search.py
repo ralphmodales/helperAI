@@ -35,7 +35,8 @@ def search(client, query):
         )
         top_5 = ranked[:5]
 
-        output = ["Top 5 Results:"]
+        output = [f"Top 5 Results for: '{query}'", ""]
+
         for i, result in enumerate(top_5, 1):
             content = result.text or result.content or ""
             desc = get_description(content)
