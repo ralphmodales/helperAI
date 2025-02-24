@@ -1,14 +1,35 @@
 local api = vim.api
 local fn = vim.fn
 
--- Highlight group for unknown terms
-api.nvim_set_hl(0, "UnknownTerm", { bg = "#ff5555", fg = "#ffffff" })
+-- Enhanced highlight groups
+local function setup_highlights()
+	-- Result highlights
+	api.nvim_set_hl(0, "HelperAITitle", { fg = "#7aa2f7", bold = true }) -- For titles
+	api.nvim_set_hl(0, "HelperAIDescription", { fg = "#9ece6a" }) -- For descriptions
+	api.nvim_set_hl(0, "HelperAIURL", { fg = "#bb9af7", underline = true }) -- For URLs
+	api.nvim_set_hl(0, "HelperAISearchTerm", { bg = "#3b4261", fg = "#7dcfff" }) -- For search terms
+end
 
 -- Create a namespace for our highlights
 local ns_id = api.nvim_create_namespace("helperAI")
 
+-- Function to highlight search terms in a line
+local function highlight_search_terms(bufnr, line_num, line, query_terms)
+	for _, term in ipairs(query_terms) do
+		local start_idx = 1
+		while true do
+			local s, e = string.find(line:lower(), term:lower(), start_idx, true)
+			if not s then
+				break
+			end
+			pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "HelperAISearchTerm", line_num, s - 1, e)
+			start_idx = e + 1
+		end
+	end
+end
+
 -- Function to show results with line-by-line animation
-local function animate_text(bufnr, lines)
+local function animate_text(bufnr, lines, query)
 	if not api.nvim_buf_is_valid(bufnr) then
 		return
 	end
@@ -17,30 +38,33 @@ local function animate_text(bufnr, lines)
 	local timer = vim.loop.new_timer()
 	local line_idx = 1
 
+	-- Parse query into terms for highlighting
+	local query_terms = {}
+	for term in query:gmatch("%S+") do
+		table.insert(query_terms, term)
+	end
+
 	-- Ensure buffer is modifiable
 	api.nvim_buf_set_option(bufnr, "modifiable", true)
 
 	-- Show "Searching..." message initially
 	api.nvim_buf_set_lines(bufnr, 0, -1, false, { "HelperAI is searching..." })
 
-	-- Start animation with a shorter delay and faster updates
+	-- Start animation
 	vim.defer_fn(function()
 		timer:start(
-			100, -- Initial delay between lines (milliseconds)
-			100, -- Interval between lines (milliseconds)
+			100,
+			100,
 			vim.schedule_wrap(function()
-				-- Check if buffer still exists
 				if not api.nvim_buf_is_valid(bufnr) then
 					timer:stop()
 					return
 				end
 
-				-- Ensure buffer is modifiable before each update
 				api.nvim_buf_set_option(bufnr, "modifiable", true)
 
 				if line_idx > #lines then
 					timer:stop()
-					-- Set buffer as non-modifiable after animation
 					api.nvim_buf_set_option(bufnr, "modifiable", false)
 					return
 				end
@@ -52,30 +76,21 @@ local function animate_text(bufnr, lines)
 				pcall(api.nvim_buf_set_lines, bufnr, 0, -1, false, current_lines)
 
 				-- Apply highlighting for the last added line
-				if current_lines[line_idx - 1] then
-					if current_lines[line_idx - 1]:match("^%d+%.") then
-						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "Identifier", line_idx - 2, 0, -1)
-					elseif current_lines[line_idx - 1]:match("^%s+Description:") then
-						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "String", line_idx - 2, 0, -1)
-					elseif current_lines[line_idx - 1]:match("^%s+URL:") then
-						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "Underlined", line_idx - 2, 0, -1)
+				local current_line = current_lines[line_idx - 1]
+				if current_line then
+					if current_line:match("^%d+%.") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "HelperAITitle", line_idx - 2, 0, -1)
+					elseif current_line:match("^%s+Description:") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "HelperAIDescription", line_idx - 2, 0, -1)
+						-- Highlight search terms in description
+						highlight_search_terms(bufnr, line_idx - 2, current_line, query_terms)
+					elseif current_line:match("^%s+URL:") then
+						pcall(api.nvim_buf_add_highlight, bufnr, ns_id, "HelperAIURL", line_idx - 2, 0, -1)
 					end
 				end
 			end)
 		)
-	end, 500) -- Reduced initial delay to 500ms
-end
-
--- Highlight unknown terms
-local function highlight_unknown_terms()
-	local lines = api.nvim_buf_get_lines(0, 0, -1, false)
-	for i, line in ipairs(lines) do
-		for word in line:gmatch("%w+") do
-			if not fn.synIDattr(fn.synID(i, fn.col("."), 1), "name") then
-				pcall(fn.matchadd, "UnknownTerm", "\\<" .. word .. "\\>", 10, -1, { window = 0 })
-			end
-		end
-	end
+	end, 500)
 end
 
 -- Search with helperAI
@@ -140,7 +155,7 @@ local function search_helperai()
 			if data then
 				vim.schedule(function()
 					if api.nvim_buf_is_valid(buf) then
-						animate_text(buf, data)
+						animate_text(buf, data, query)
 					end
 				end)
 			end
@@ -162,14 +177,11 @@ M.setup = function(opts)
 	opts = opts or {}
 	local keymap = opts.keymap or "<leader>s"
 
+	-- Set up highlights
+	setup_highlights()
+
 	-- Visual mode mapping
 	vim.keymap.set("v", keymap, search_helperai, { noremap = true, silent = true })
-
-	-- Autocommand for highlighting
-	api.nvim_create_autocmd("BufEnter", {
-		pattern = "*",
-		callback = highlight_unknown_terms,
-	})
 
 	-- Register user command
 	api.nvim_create_user_command("HelperAISearch", search_helperai, {})
