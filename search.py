@@ -63,11 +63,7 @@ def main():
     results = search(client, args.query)
 
     for line in results:
-        if "URL:" in line:
-            url = line.split("URL: ")[1]
-            print(f"\033]8;;{url}\a{line}\033]8;;\a", flush=True)  # ANSI hyperlink
-        else:
-            print(line, flush=True)
+        print(line, flush=True)
 
 
 if __name__ == "__main__":

@@ -31,9 +31,39 @@ local function setup_url_mapping(bufnr, win)
 		local line = api.nvim_get_current_line()
 		local url = line:match("URL:%s*(https?://%S+)")
 		if url then
-			fn.system({ "xdg-open", url }) -- For Linux; use "open" for macOS or "start" for Windows
+			vim.notify("Attempting to open URL: " .. url, vim.log.levels.INFO)
+
+			local cmd
+			if fn.has("mac") == 1 then
+				cmd = { "open", url }
+			elseif fn.has("win32") == 1 or fn.has("win64") == 1 then
+				cmd = { "cmd.exe", "/c", "start", url }
+			else
+				cmd = { "xdg-open", url }
+			end
+
+			local success, result = pcall(fn.system, cmd)
+			if not success then
+				vim.notify("Failed to open URL: " .. tostring(result), vim.log.levels.ERROR)
+			end
+		else
+			vim.notify("No URL found on this line", vim.log.levels.WARN)
 		end
 	end, { buffer = bufnr, silent = true })
+
+	api.nvim_create_autocmd("CursorHold", {
+		buffer = bufnr,
+		callback = function()
+			local line = api.nvim_get_current_line()
+			local url = line:match("URL:%s*(https?://%S+)")
+			if url then
+				vim.lsp.util.open_floating_preview({ "Press Enter to open URL: " .. url }, "markdown", {
+					border = "rounded",
+					close_events = { "CursorMoved", "BufHidden", "InsertCharPre" },
+				})
+			end
+		end,
+	})
 end
 
 local function animate_text(bufnr, lines, query)
