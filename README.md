@@ -2,19 +2,19 @@
 
 **Search smarter, not harder.**
 
-A Neovim plugin that lets you highlight text, hit a key, and get the top 5 search results from the Exa API—titles, descriptions, and URLs—right in a buffer. No more tabbing out to Google. Plus, it highlights "unknown" terms in your code for quick lookups.
+A Neovim plugin that lets you highlight text, hit a key, and get the top 5 search results from the Exa API—titles, descriptions, and URLs—right in a floating window. No more tabbing out to Google. Plus, it highlights "unknown" terms in your code for quick lookups.
 
 ## Features
 
-- **Instant Search**: Highlight text in visual mode, press `<leader>s`, and see the top 5 results in a split buffer.
+- **Instant Search**: Highlight text in visual mode, press `<leader>s`, and see the top 5 results in a floating window.
 - **Smart Highlighting**: Unknown terms (words not in syntax scope) get a red highlight automatically.
 - **No Browser Needed**: Powered by the Exa API, delivering concise info directly in Neovim.
-- **Clean Output**: Each result includes the title, a 200-char description, and a clickable URL.
+- **Clean Output**: Each result includes the title, a description, and a clickable URL.
 - **Syntax Highlighting**: Search results are color-coded for better readability.
-
-## Screenshot
-
-Imagine this in your Neovim split after searching "python async":
+- **Animated Results**: Results appear with a smooth animation for a better UX.
+- **Interactive URLs**: Press Enter on a URL to open it in your default browser.
+- **Expandable Content**: Press 'c' on a result to toggle its full content view.
+- **Query Term Highlighting**: Search terms are highlighted in the results for quick scanning.
 
 ### Top 5 Results:
 
@@ -109,6 +109,7 @@ URL: https://example.com/async-guide
   - Restart Neovim
   - Check if the plugin loaded: :Lazy (look for helperAI marked as loaded).
   - Test it: Open a file, select text in visual mode (v), press <leader>s (default \s), and see if a floating window appears with "HelperAI is searching...".
+
 ## Usage
 
 ### Highlight Unknowns
@@ -118,10 +119,16 @@ URL: https://example.com/async-guide
 ### Search
 - Enter visual mode (`v`), select some text (e.g., "python async").
 - Press `<leader>s` (default: `\s`—customize in your keymaps if you want).
-- A vertical split opens with the top 5 results, syntax-highlighted for readability:
-  - Titles in identifier color
-  - Descriptions in string color
-  - URLs underlined
+- A floating window opens with the top 5 results, animated and syntax-highlighted for readability:
+  - Titles in blue
+  - Descriptions in green
+  - URLs underlined in purple
+  - Your search terms highlighted in the results
+
+### Interactive Features
+- **URL Opening**: Press `Enter` on a URL line to open it in your default browser
+- **Content Viewing**: Press `c` to toggle the full content of a result
+- **Hover Info**: Hover over a URL to see a floating tooltip with the URL
 
 ## Technical Details
 
@@ -143,23 +150,25 @@ helperAI/
 The Python script:
 - Uses the Exa API to search and fetch content
 - Ranks results by content length and query word matches
-- Truncates descriptions to 200 characters
-- Returns formatted output with titles, descriptions, and URLs
+- Truncates descriptions to 200 characters and full content to 500 characters
+- Returns formatted output with titles, descriptions, URLs, and full content
 
 ### Neovim Integration
 
 The Lua plugin:
 - Sets up automatic unknown term highlighting
 - Handles visual selection and search triggering
-- Creates and manages the results buffer
+- Creates and manages the floating window with results
 - Applies syntax highlighting to search results
+- Provides interactive features (URL opening, content toggling)
+- Animates the results appearance for better UX
 
 ## Configuration
 
 ### Change Keymap
 Redefine the search trigger in your `init.lua`:
 ```lua
-vim.keymap.set("x", "<leader>q", ":lua require('helperAI').search()<CR>", { noremap = true, silent = true })
+vim.keymap.set("v", "<leader>q", ":lua require('helperAI').search()<CR>", { noremap = true, silent = true })
 ```
 
 ### Tweak Unknown Term Highlighting
@@ -168,10 +177,14 @@ Modify the UnknownTerm highlight group:
 vim.api.nvim_set_hl(0, "UnknownTerm", { bg = "#ff5555", fg = "#ffffff" })
 ```
 
-### Buffer Style
-Swap the vsplit for a floating window by editing `init.lua`—replace `vsplit | buffer` with:
+### Customize Result Colors
+The plugin uses these highlight groups that you can customize:
 ```lua
-api.nvim_open_win(buf, true, { relative='win', width=80, height=20, col=10, row=10, border='single' })
+vim.api.nvim_set_hl(0, "HelperAITitle", { fg = "#7aa2f7", bold = true })
+vim.api.nvim_set_hl(0, "HelperAIDescription", { fg = "#9ece6a" })
+vim.api.nvim_set_hl(0, "HelperAIURL", { fg = "#bb9af7", underline = true })
+vim.api.nvim_set_hl(0, "HelperAISearchTerm", { bg = "#3b4261", fg = "#7dcfff" })
+vim.api.nvim_set_hl(0, "HelperAIContent", { fg = "#c0caf5" })
 ```
 
 ## Contributing
