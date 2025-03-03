@@ -43,6 +43,9 @@ def search(client, query):
             output.append(f"{i}. {result.title}")
             output.append(f"   Description: {desc}")
             output.append(f"   URL: {result.url}")
+            output.append(
+                f"   Content: {content[:500]}{'...' if len(content) > 500 else ''}"
+            )
             output.append("")
 
         return output
@@ -60,7 +63,11 @@ def main():
     results = search(client, args.query)
 
     for line in results:
-        print(line, flush=True)
+        if "URL:" in line:
+            url = line.split("URL: ")[1]
+            print(f"\033]8;;{url}\a{line}\033]8;;\a", flush=True)  # ANSI hyperlink
+        else:
+            print(line, flush=True)
 
 
 if __name__ == "__main__":
