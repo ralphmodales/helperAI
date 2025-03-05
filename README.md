@@ -165,6 +165,16 @@ The Lua plugin:
 
 ## Configuration
 
+### Change Number of Results
+By default, the plugin shows 5 results. You can easily change this in your `init.lua`:
+
+```lua
+require('helperAI').setup({
+    keymap = '<leader>s',    -- Optional: change the default keymap
+    num_results = 10         -- Optional: change the number of results (default is 5)
+})
+```
+
 ### Change Keymap
 Redefine the search trigger in your `init.lua`:
 ```lua
