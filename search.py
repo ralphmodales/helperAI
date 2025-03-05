@@ -18,7 +18,7 @@ def get_description(content):
     return (content or "")[:200] + ("..." if len(content or "") > 200 else "")
 
 
-def search(client, query):
+def search(client, query, num_results=5):
     try:
         results = client.search_and_contents(query, text={"max_characters": 2000})
         if not results.results:
@@ -33,11 +33,11 @@ def search(client, query):
             ),
             reverse=True,
         )
-        top_5 = ranked[:5]
+        top_results = ranked[:num_results]
 
-        output = [f"Top 5 Results for: '{query}'", ""]
+        output = [f"Top {num_results} Results for: '{query}'", ""]
 
-        for i, result in enumerate(top_5, 1):
+        for i, result in enumerate(top_results, 1):
             content = result.text or result.content or ""
             desc = get_description(content)
             output.append(f"{i}. {result.title}")
@@ -57,10 +57,13 @@ def search(client, query):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--query", required=True, help="Search query")
+    parser.add_argument(
+        "--num-results", type=int, default=5, help="Number of results to retrieve"
+    )
     args = parser.parse_args()
 
     client = load_exa_client()
-    results = search(client, args.query)
+    results = search(client, args.query, args.num_results)
 
     for line in results:
         print(line, flush=True)
