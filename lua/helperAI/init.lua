@@ -240,9 +240,90 @@ local M = {}
 M.setup = function(opts)
 	opts = opts or {}
 	local keymap = opts.keymap or "<leader>s"
+	local num_results = opts.num_results or 5
 	setup_highlights()
-	vim.keymap.set("v", keymap, search_helperai, { noremap = true, silent = true })
-	api.nvim_create_user_command("HelperAISearch", search_helperai, {})
+	vim.keymap.set("v", keymap, function()
+		search_helperai(num_results)
+	end, { noremap = true, silent = true })
+	api.nvim_create_user_command("HelperAISearch", function()
+		search_helperai(num_results)
+	end, {})
+end
+
+function search_helperai(num_results)
+	local mode = fn.mode()
+	if mode == "v" or mode == "V" then
+		api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
+	else
+		vim.notify("Please select text in visual mode first!", vim.log.levels.WARN)
+		return
+	end
+
+	local start_pos = api.nvim_buf_get_mark(0, "<")
+	local end_pos = api.nvim_buf_get_mark(0, ">")
+	local lines = api.nvim_buf_get_text(0, start_pos[1] - 1, start_pos[2], end_pos[1] - 1, end_pos[2] + 1, {})
+	local query = table.concat(lines, " "):gsub("%s+", " ")
+
+	if query == "" then
+		vim.notify("No text selected!", vim.log.levels.WARN)
+		return
+	end
+
+	local buf = api.nvim_create_buf(false, true)
+	local buffer_options = {
+		modifiable = true,
+		filetype = "helperai",
+		buftype = "nofile",
+		swapfile = false,
+	}
+
+	for option, value in pairs(buffer_options) do
+		api.nvim_buf_set_option(buf, option, value)
+	end
+
+	local width = api.nvim_get_option_value("columns", {})
+	local win_config = {
+		relative = "editor",
+		width = math.floor(width * 0.4),
+		height = api.nvim_get_option_value("lines", {}) - 4,
+		col = width - math.floor(width * 0.4),
+		row = 2,
+		style = "minimal",
+		border = "rounded",
+	}
+
+	local win = api.nvim_open_win(buf, true, win_config)
+	api.nvim_win_set_option(win, "wrap", true)
+	api.nvim_win_set_option(win, "cursorline", true)
+
+	setup_url_mapping(buf, win)
+
+	local script_path = fn.expand(fn.stdpath("config") .. "/helperAI/search.py")
+	if not vim.loop.fs_stat(script_path) then
+		vim.notify("search.py script not found at " .. script_path, vim.log.levels.ERROR)
+		return
+	end
+
+	local cmd = string.format("python3 %s --query %q --num-results %d", script_path, query, num_results)
+	fn.jobstart(cmd, {
+		stdout_buffered = true,
+		on_stdout = function(_, data)
+			if data then
+				vim.schedule(function()
+					if api.nvim_buf_is_valid(buf) then
+						animate_text(buf, data, query)
+					end
+				end)
+			end
+		end,
+		on_exit = function()
+			vim.schedule(function()
+				if api.nvim_buf_is_valid(buf) then
+					api.nvim_buf_set_option(buf, "modifiable", false)
+				end
+			end)
+		end,
+	})
 end
 
 M.search = search_helperai
